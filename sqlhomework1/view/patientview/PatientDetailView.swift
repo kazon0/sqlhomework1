@@ -102,7 +102,7 @@ struct PatientDetailView: View {
                             ModuleCard(icon: "arrow.triangle.2.circlepath", title: "随访记录", color: .orange)
                         }
 
-                        NavigationLink(destination: EpidemiologyFormView(patientId: patient.id)) {
+                        NavigationLink(destination: EpidemiologyMainEntryView(patientId: patient.id)) {
                             ModuleCard(icon: "doc.text.magnifyingglass", title: "流调信息", color: .green)
                         }
 

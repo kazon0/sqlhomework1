@@ -65,22 +65,26 @@ class CheckReportsTable {
             if sqlite3_step(stmt) == SQLITE_DONE {
                 print("插入检查报告成功")
             } else {
-                print("插入检查报告失败")
+                let errmsg = String(cString: sqlite3_errmsg(db))
+                print("插入检查报告失败: \(errmsg)")
             }
         } else {
-            print("插入语句准备失败")
+            let errmsg = String(cString: sqlite3_errmsg(db))
+            print("插入语句准备失败: \(errmsg)")
         }
         sqlite3_finalize(stmt)
     }
 
+
     // 查询指定患者所有检查报告
-    func queryReports(for patientId: Int32) -> [CheckReport] {
+    func queryReports(for patientId: Int32, category: String) -> [CheckReport] {
         var result: [CheckReport] = []
-        let query = "SELECT * FROM CheckReports WHERE PatientId = ? ORDER BY CheckDate DESC;"
+        let query = "SELECT * FROM CheckReports WHERE PatientId = ? AND Category = ? ORDER BY CheckDate DESC;"
         var stmt: OpaquePointer?
 
         if sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK {
             sqlite3_bind_int(stmt, 1, patientId)
+            sqlite3_bind_text(stmt, 2, (category as NSString).utf8String, -1, nil)
 
             while sqlite3_step(stmt) == SQLITE_ROW {
                 let id = sqlite3_column_int(stmt, 0)
@@ -107,6 +111,7 @@ class CheckReportsTable {
         sqlite3_finalize(stmt)
         return result
     }
+
 
     // 更新检查报告
     func updateCheckReport(id: Int32, category: String, subType: String, checkDate: String, reportJson: String, remarks: String) {

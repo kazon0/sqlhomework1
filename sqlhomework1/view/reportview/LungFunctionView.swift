@@ -1,5 +1,5 @@
 //
-//  BloodRoutineView.swift
+//  CheckReportListView 2.swift
 //  sqlhomework1
 //
 //  Created by 郑金坝 on 2025/6/30.
@@ -8,27 +8,27 @@
 
 import SwiftUI
 
-struct BloodRoutineView: View {
+struct LungFunctionView: View {
     let patientId: Int32
     let table = CheckReportsTable(db: DatabaseManager.shared.db)
 
     @State private var reports: [CheckReport] = []
     @State private var showingAddSheet = false
     @State private var editingReport: CheckReport? = nil
-    @State private var showingEditSheet = false
 
     var body: some View {
         VStack {
             if reports.isEmpty {
                 Spacer()
-                Text("暂无血常规记录").foregroundColor(.gray)
-                Button("添加血常规检查") {
+                Text("暂无肺功能检查记录")
+                    .foregroundColor(.gray)
+                Button("添加肺功能检查") {
                     showingAddSheet = true
                 }
                 .padding()
                 .background(Color.blue)
                 .foregroundColor(.white)
-                .cornerRadius(12)
+                .cornerRadius(10)
                 Spacer()
             } else {
                 List {
@@ -38,8 +38,16 @@ struct BloodRoutineView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("检查日期：\(report.checkDate)")
                                 .font(.headline)
-
-                            BloodRoutineFieldsView(dict: dict)
+                            
+                            let displayFields = fieldsForSubType(report.subType)
+                            
+                            ForEach(displayFields, id: \.self) { key in
+                                if let value = dict[key], !value.isEmpty {
+                                    Text("\(key)：\(value)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
 
                             if !report.remarks.isEmpty {
                                 Text("备注：\(report.remarks)")
@@ -47,19 +55,17 @@ struct BloodRoutineView: View {
                                     .foregroundColor(.gray)
                             }
                         }
+
                         .padding(.vertical, 4)
-                        .swipeActions(edge: .trailing) {
+                        .swipeActions {
                             Button(role: .destructive) {
                                 table.deleteCheckReport(by: report.id)
                                 loadReports()
                             } label: {
                                 Label("删除", systemImage: "trash")
                             }
-                        }
-                        .swipeActions(edge: .leading) {
                             Button {
                                 editingReport = report
-                                showingEditSheet = true
                             } label: {
                                 Label("编辑", systemImage: "pencil")
                             }
@@ -69,7 +75,7 @@ struct BloodRoutineView: View {
                 }
             }
         }
-        .navigationTitle("血常规")
+        .navigationTitle("肺功能检查")
         .toolbar {
             Button {
                 showingAddSheet = true
@@ -78,23 +84,15 @@ struct BloodRoutineView: View {
             }
         }
         .sheet(isPresented: $showingAddSheet) {
-            AddReportView(
-                patientId: patientId,
-                category: "血常规",
-                fields: CheckReportFields.bloodRoutineFields
-            ) {
+            AddLungFunctionReportView(patientId: patientId) {
                 loadReports()
                 showingAddSheet = false
             }
         }
         .sheet(item: $editingReport) { report in
-            EditReportView(
-                report: report,
-                category: "血常规",
-                fields: CheckReportFields.bloodRoutineFields
-            ) {
+            EditLungFunctionReportView(report: report) {
                 loadReports()
-                showingEditSheet = false
+                editingReport = nil
             }
         }
         .onAppear {
@@ -102,8 +100,22 @@ struct BloodRoutineView: View {
         }
     }
 
+    func fieldsForSubType(_ subType: String) -> [String] {
+        switch subType {
+        case "支气管舒张试验":
+            return CheckReportFields.bronchodilatorTestFields
+        case "支气管激发试验":
+            return CheckReportFields.bronchialProvocationTestFields
+        case "潮气肺功能检查":
+            return CheckReportFields.tidalLungFunctionFields
+        default:
+            return CheckReportFields.lungFunctionFields
+        }
+    }
+
     func loadReports() {
-        reports = table.queryReports(for: patientId)
+        reports = table.queryReports(for: patientId,category: "肺功能")
+            .filter { $0.category == "肺功能" }
     }
 
     func parseReportJson(_ json: String) -> [String: String]? {
@@ -113,20 +125,3 @@ struct BloodRoutineView: View {
         return nil
     }
 }
-
-struct BloodRoutineFieldsView: View {
-    let dict: [String: String]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(CheckReportFields.bloodRoutineFields, id: \.self) { key in
-                if let value = dict[key], !value.isEmpty {
-                    Text("\(key)：\(value)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-    }
-}
-

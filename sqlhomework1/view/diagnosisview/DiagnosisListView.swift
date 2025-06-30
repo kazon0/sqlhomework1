@@ -14,13 +14,10 @@ struct DiagnosisListView: View {
 
     @State private var diagnoses: [Diagnosis] = []
     @State private var showingAddSheet = false
-    
     @State private var editingDiagnosis: Diagnosis? = nil
-    @State private var showingEditSheet = false
 
     var body: some View {
         VStack {
-            
             if diagnoses.isEmpty {
                 Spacer()
                 Text("暂无诊断信息")
@@ -39,11 +36,21 @@ struct DiagnosisListView: View {
             } else {
                 List {
                     ForEach(diagnoses) { item in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("诊断：\(item.diagnosis)").bold()
-                            Text("时间：\(item.visitDate)")
-                            Text("过敏原：\(item.allergens)")
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("疾病类型：\(item.diseaseType == "其他" ? item.customName : item.diseaseType)")
+                                .bold()
+                            Text("就诊日期：\(item.visitDate)")
+                                .font(.headline)
                             Text("治疗方案：\(item.treatment)")
+                                .font(.headline)
+                            HStack {
+                                Text("症状详情：")
+                                    .font(.headline)
+                                    .foregroundColor(.black)
+                                Text(symptomDescription(for: item))
+                                    .font(.headline)
+    
+                            }
                         }
                         .padding(.vertical, 6)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -76,7 +83,6 @@ struct DiagnosisListView: View {
         }
         .sheet(isPresented: $showingAddSheet) {
             AddDiagnosisView(patientId: patientId) {
-                // 新增完成后刷新列表
                 diagnoses = table.queryDiagnoses(for: patientId)
                 showingAddSheet = false
             }
@@ -84,7 +90,7 @@ struct DiagnosisListView: View {
         .sheet(item: $editingDiagnosis) { editing in
             EditDiagnosisView(diagnosis: editing) {
                 diagnoses = table.queryDiagnoses(for: patientId)
-                editingDiagnosis = nil // 清除后自动关闭 sheet
+                editingDiagnosis = nil
             }
         }
         .onAppear {
@@ -94,12 +100,51 @@ struct DiagnosisListView: View {
     
     func editDiagnosis(_ item: Diagnosis) {
         editingDiagnosis = item
-        showingEditSheet = true
     }
     
     func deleteDiagnosis(_ item: Diagnosis) {
         table.deleteDiagnosis(by: item.id)
         diagnoses = table.queryDiagnoses(for: patientId)
+    }
+    
+    func symptomDescription(for diagnosis: Diagnosis) -> String {
+        let jsonData = diagnosis.symptomJson.data(using: .utf8) ?? Data()
+        let diseaseType = diagnosis.diseaseType
+        
+        switch diseaseType {
+        case "哮喘":
+            if let asthma = try? JSONDecoder().decode(AsthmaSymptomData.self, from: jsonData) {
+                var parts = [String]()
+                if asthma.wheezing { parts.append("喘息") }
+                if asthma.coughing { parts.append("咳嗽") }
+                if asthma.chestTightness { parts.append("胸闷") }
+                if !asthma.triggers.isEmpty { parts.append("诱因：\(asthma.triggers.joined(separator: ", "))") }
+                return parts.isEmpty ? "无明显症状" : parts.joined(separator: "，")
+            }
+        case "过敏性鼻炎":
+            if let rhinitis = try? JSONDecoder().decode(RhinitisSymptomData.self, from: jsonData) {
+                var parts = [String]()
+                if rhinitis.sneezing { parts.append("阵发性喷嚏") }
+                if rhinitis.runnyNose { parts.append("流清水鼻涕") }
+                if rhinitis.nasalCongestion { parts.append("鼻塞") }
+                if rhinitis.eyeItching { parts.append("眼痒") }
+                return parts.isEmpty ? "无明显症状" : parts.joined(separator: "，")
+            }
+        case "湿疹":
+            if let dermatitis = try? JSONDecoder().decode(DermatitisSymptomData.self, from: jsonData) {
+                var parts = [String]()
+                if dermatitis.drySkin { parts.append("皮肤干燥") }
+                if dermatitis.eczemaHistory { parts.append("复发性瘙痒性皮疹") }
+                if dermatitis.fishScaleSkin { parts.append("鱼鳞皮肤") }
+                if dermatitis.darkEyeCircle { parts.append("黑眼圈") }
+                return parts.isEmpty ? "无明显症状" : parts.joined(separator: "，")
+            }
+        case "其他":
+            return diagnosis.symptomJson.isEmpty ? "无症状描述" : diagnosis.symptomJson
+        default:
+            return "无症状信息"
+        }
+        return "症状解析失败"
     }
 
 }

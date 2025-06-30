@@ -118,7 +118,7 @@ class PatientTable {
                 let gender = String(cString: sqlite3_column_text(stmt, 3))
                 let birthDate = String(cString: sqlite3_column_text(stmt, 4))
                 let age = Int(sqlite3_column_int(stmt, 5))
-                let address = String(cString: sqlite3_column_text(stmt, 6))
+                let address = sqlite3_column_text(stmt, 6).map { String(cString: $0) } ?? ""
                 let height = sqlite3_column_double(stmt, 7)
                 let weight = sqlite3_column_double(stmt, 8)
                 let birthWeight = sqlite3_column_double(stmt, 9)

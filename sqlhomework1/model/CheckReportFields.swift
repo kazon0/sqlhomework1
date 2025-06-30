@@ -41,13 +41,9 @@ struct CheckReportFields {
         "FEV1/VCmax", "VCmax", "结论"
     ]
 
-    static let bronchodilatorTestFields = [
-        "阳性", "阴性"
-    ]
+    static let bronchodilatorTestFields = ["支气管舒张试验结果"]
+    static let bronchialProvocationTestFields = ["支气管激发试验结果"]
 
-    static let bronchialProvocationTestFields = [
-        "阳性", "阴性"
-    ]
 
     static let tidalLungFunctionFields = [
         "WT/kg", "RRD", "Ti", "TeO", "Ti/Te",
