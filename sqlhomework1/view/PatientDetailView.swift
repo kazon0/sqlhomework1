@@ -12,63 +12,77 @@ struct PatientDetailView: View {
     let patient: Patient
     let onUpdate: () -> Void
     @State private var showingEdit = false
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // 卡片容器
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text(patient.name)
-                            .font(.title)
-                            .fontWeight(.bold)
-                        Spacer()
-                        Button(action:{
-                            showingEdit = true
-                        }){
-                            Image(systemName: "pencil")
-                                .resizable()
-                                .scaledToFit()
+                NavigationLink(destination: PatientCenterView(patient: patient)) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text(patient.name)
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(.black)
+
+                            Text("ID:")
+                                .font(.headline)
+                                .foregroundColor(.black)
+                                .offset(x:20)
+                            Text("\(patient.id)")
                                 .foregroundColor(.gray)
-                                .frame(width: 20)
+                                .font(.headline)
+                                .offset(x:20)
+
+                            Spacer()
+
+                            Button(action:{
+                                showingEdit = true
+                            }){
+                                Image(systemName: "pencil")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundColor(.gray)
+                                    .frame(width: 20)
+                            }
                         }
+
+                        HStack {
+                            Label(patient.gender, systemImage: "person.fill")
+                                .padding(.trailing,35)
+                            Text("\(patient.age) 岁")
+                            Spacer()
+                            Label(patient.birthDate, systemImage: "calendar")
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                        Divider()
+
+                        HStack {
+                            Label(patient.phone, systemImage: "phone.fill")
+                                .foregroundColor(.black)
+                            Spacer()
+                            Label(patient.status, systemImage: "heart.fill")
+                                .foregroundColor(color(for: patient.status))
+                        }
+                        .font(.headline)
                     }
                     .sheet(isPresented: $showingEdit) {
                         EditPatientView(
-                            name: patient.name,
-                            gender: patient.gender,
-                            birthdate: patient.birthdate,
-                            phone: patient.phone,
-                            status: patient.status,
-                            patientId: patient.id,
+                            patient: patient,
                             onSave: {
                                 showingEdit = false
                                 onUpdate()
                             }
                         )
                     }
-                    HStack {
-                        Label(patient.gender, systemImage: "person.fill")
-                        Spacer()
-                        Label(patient.birthdate, systemImage: "calendar")
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                    Divider()
-
-                    HStack {
-                        Label(patient.phone, systemImage: "phone.fill")
-                        Spacer()
-                        Label(patient.status, systemImage: "heart.fill")
-                            .foregroundColor(color(for: patient.status))
-                    }
-                    .font(.headline)
                 }
+
                 .padding()
                 .background(Color(UIColor.secondarySystemBackground))
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 3)
-
+                
                 Spacer()
                 
                 HStack{
@@ -95,16 +109,19 @@ struct PatientDetailView: View {
                         NavigationLink(destination: BioSampleListView(patientId: patient.id)) {
                             ModuleCard(icon: "flask", title: "生物样本", color: .purple)
                         }
+                        
+                        NavigationLink(destination: CheckReportListView(patientId: patient.id)) {
+                            ModuleCard(icon: "doc.text.fill", title: "检查报告", color: .pink)
+                        }
+
                     }
                     .padding(.vertical, 6)
                 }
-
             }
             .padding()
         }
     }
 
-    // 状态颜色匹配函数
     func color(for status: String) -> Color {
         switch status {
         case "在诊中":
@@ -151,22 +168,27 @@ struct ModuleCard: View {
     }
 }
 
-
-
 struct PatientDetailView_Previews: PreviewProvider {
     static var previews: some View {
-        PatientDetailView(
-            patient: Patient(
-                id: 1,
-                name: "张三",
-                gender: "男",
-                birthdate: "1990-01-01",
-                phone: "13800138000",
-                status: "在诊中"
-            ),
-            onUpdate: {} 
-        )
+        NavigationView {
+            PatientDetailView(
+                patient: Patient(
+                    id: 1,
+                    visitDate: "2025-06-28",
+                    name: "张三",
+                    gender: "男",
+                    birthDate: "1990-01-01",
+                    age: 35,
+                    address: "北京市朝阳区建国路",
+                    height: 175.5,
+                    weight: 68.2,
+                    birthWeight: 3.2,
+                    lifestyle: "不吸烟，偶尔锻炼",
+                    phone: "13800138000",
+                    status: "在诊中"
+                ),
+                onUpdate: {}
+            )
+        }
     }
 }
-
-

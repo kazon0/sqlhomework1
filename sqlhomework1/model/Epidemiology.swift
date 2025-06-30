@@ -15,4 +15,9 @@ struct Epidemiology: Identifiable {
     let dustExposure: Bool
     let familyHistory: Bool
     let smoking: Bool
+    let residenceType: String
+    let moldExposure: Bool
+    let secondHandSmoke: Bool
+    let ventilation: Bool
+    let humidity: String
 }

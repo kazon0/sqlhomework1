@@ -5,9 +5,9 @@
 //  Created by 郑金坝 on 2025/6/28.
 //
 
-
 import Foundation
 import SQLite3
+
 
 class PatientTable {
     let db: OpaquePointer?
@@ -20,7 +20,6 @@ class PatientTable {
         createTable()
     }
 
-
     func createTable() {
         guard let db = db else {
             print("数据库未打开，无法创建表")
@@ -28,12 +27,20 @@ class PatientTable {
         }
         let sql = """
         CREATE TABLE IF NOT EXISTS Patients(
-        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-        Name TEXT,
-        Gender TEXT,
-        Birthdate TEXT,
-        Phone TEXT,
-        Status TEXT DEFAULT '在诊中');
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            VisitDate TEXT NOT NULL,
+            Name TEXT NOT NULL,
+            Gender TEXT,
+            BirthDate TEXT,
+            Age INTEGER,
+            Address TEXT,
+            Height REAL,
+            Weight REAL,
+            BirthWeight REAL,
+            Lifestyle TEXT,
+            Phone TEXT,
+            Status TEXT DEFAULT '在诊中'
+        );
         """
         executeSQL(sql, successMessage: "患者表创建成功", db: db)
     }
@@ -52,16 +59,38 @@ class PatientTable {
         sqlite3_finalize(stmt)
     }
 
-
-    func insertPatient(name: String, gender: String, birthdate: String, phone: String, status: String = "在诊中") {
-        let sql = "INSERT INTO Patients (Name, Gender, Birthdate, Phone, Status) VALUES (?, ?, ?, ?, ?);"
+    func insertPatient(
+        visitDate: String,
+        name: String,
+        gender: String,
+        birthDate: String,
+        age: Int,
+        address: String,
+        height: Double,
+        weight: Double,
+        birthWeight: Double,
+        lifestyle: String,
+        phone: String,
+        status: String = "在诊中"
+    ) {
+        let sql = """
+        INSERT INTO Patients (VisitDate, Name, Gender, BirthDate, Age, Address, Height, Weight, BirthWeight, Lifestyle, Phone, Status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
         var stmt: OpaquePointer?
         if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
-            sqlite3_bind_text(stmt, 1, (name as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(stmt, 2, (gender as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(stmt, 3, (birthdate as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(stmt, 4, (phone as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(stmt, 5, (status as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 1, (visitDate as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 2, (name as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 3, (gender as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 4, (birthDate as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(stmt, 5, Int32(age))
+            sqlite3_bind_text(stmt, 6, (address as NSString).utf8String, -1, nil)
+            sqlite3_bind_double(stmt, 7, height)
+            sqlite3_bind_double(stmt, 8, weight)
+            sqlite3_bind_double(stmt, 9, birthWeight)
+            sqlite3_bind_text(stmt, 10, (lifestyle as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 11, (phone as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 12, (status as NSString).utf8String, -1, nil)
 
             if sqlite3_step(stmt) == SQLITE_DONE {
                 print("插入患者成功")
@@ -84,13 +113,34 @@ class PatientTable {
         if sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK {
             while sqlite3_step(stmt) == SQLITE_ROW {
                 let id = sqlite3_column_int(stmt, 0)
-                let name = String(cString: sqlite3_column_text(stmt, 1))
-                let gender = String(cString: sqlite3_column_text(stmt, 2))
-                let birthdate = String(cString: sqlite3_column_text(stmt, 3))
-                let phone = String(cString: sqlite3_column_text(stmt, 4))
-                let status = sqlite3_column_text(stmt, 5).flatMap { String(cString: $0) } ?? "未知状态"
+                let visitDate = String(cString: sqlite3_column_text(stmt, 1))
+                let name = String(cString: sqlite3_column_text(stmt, 2))
+                let gender = String(cString: sqlite3_column_text(stmt, 3))
+                let birthDate = String(cString: sqlite3_column_text(stmt, 4))
+                let age = Int(sqlite3_column_int(stmt, 5))
+                let address = String(cString: sqlite3_column_text(stmt, 6))
+                let height = sqlite3_column_double(stmt, 7)
+                let weight = sqlite3_column_double(stmt, 8)
+                let birthWeight = sqlite3_column_double(stmt, 9)
+                let lifestyle = String(cString: sqlite3_column_text(stmt, 10))
+                let phone = String(cString: sqlite3_column_text(stmt, 11))
+                let status = String(cString: sqlite3_column_text(stmt, 12))
 
-                result.append(Patient(id: id, name: name, gender: gender, birthdate: birthdate, phone: phone, status: status))
+                result.append(Patient(
+                    id: id,
+                    visitDate: visitDate,
+                    name: name,
+                    gender: gender,
+                    birthDate: birthDate,
+                    age: age,
+                    address: address,
+                    height: height,
+                    weight: weight,
+                    birthWeight: birthWeight,
+                    lifestyle: lifestyle,
+                    phone: phone,
+                    status: status
+                ))
             }
         } else {
             print("查询语句准备失败")
@@ -99,7 +149,8 @@ class PatientTable {
         sqlite3_finalize(stmt)
         return result
     }
-    
+
+
     func deletePatient(by id: Int32) {
         let sql = "DELETE FROM Patients WHERE Id = ?;"
         var stmt: OpaquePointer?
@@ -132,19 +183,40 @@ class PatientTable {
         }
         sqlite3_finalize(stmt)
     }
-    
-    func updatePatientInfo(id: Int32, name: String, gender: String, birthdate: String, phone: String, status: String) {
+
+    func updatePatientInfo(
+        id: Int32,
+        visitDate: String,
+        name: String,
+        gender: String,
+        birthDate: String,
+        age: Int,
+        address: String,
+        height: Double,
+        weight: Double,
+        birthWeight: Double,
+        lifestyle: String,
+        phone: String,
+        status: String
+    ) {
         let sql = """
-        UPDATE Patients SET Name = ?, Gender = ?, Birthdate = ?, Phone = ?, Status = ? WHERE Id = ?;
+        UPDATE Patients SET VisitDate = ?, Name = ?, Gender = ?, BirthDate = ?, Age = ?, Address = ?, Height = ?, Weight = ?, BirthWeight = ?, Lifestyle = ?, Phone = ?, Status = ? WHERE Id = ?;
         """
         var stmt: OpaquePointer?
         if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
-            sqlite3_bind_text(stmt, 1, (name as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(stmt, 2, (gender as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(stmt, 3, (birthdate as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(stmt, 4, (phone as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(stmt, 5, (status as NSString).utf8String, -1, nil)
-            sqlite3_bind_int(stmt, 6, id)
+            sqlite3_bind_text(stmt, 1, (visitDate as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 2, (name as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 3, (gender as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 4, (birthDate as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(stmt, 5, Int32(age))
+            sqlite3_bind_text(stmt, 6, (address as NSString).utf8String, -1, nil)
+            sqlite3_bind_double(stmt, 7, height)
+            sqlite3_bind_double(stmt, 8, weight)
+            sqlite3_bind_double(stmt, 9, birthWeight)
+            sqlite3_bind_text(stmt, 10, (lifestyle as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 11, (phone as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 12, (status as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(stmt, 13, id)
 
             if sqlite3_step(stmt) == SQLITE_DONE {
                 print("患者信息更新成功")
@@ -156,5 +228,4 @@ class PatientTable {
         }
         sqlite3_finalize(stmt)
     }
-
 }

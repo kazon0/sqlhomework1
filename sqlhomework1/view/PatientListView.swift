@@ -16,21 +16,8 @@ struct PatientListView: View {
         NavigationStack {
             List {
                 ForEach(patients) { patient in
-                    NavigationLink(destination: PatientDetailView(patient: patient,
-                        onUpdate: loadPatients)) {
-                        HStack(spacing:20){
-                            // 状态颜色圆点
-                            Circle()
-                                .fill(color(for: patient.status))
-                                .frame(width: 20, height: 20)
-                            VStack(alignment: .leading) {
-                                HStack(spacing:20){
-                                    Text(patient.name).font(.headline)
-                                    Text("性别：\(patient.gender)").font(.headline)
-                                }
-                                Text("生日：\(patient.birthdate)").font(.headline)
-                            }
-                        }
+                    NavigationLink(destination: PatientDetailView(patient: patient, onUpdate: loadPatients)) {
+                        PatientRowView(patient: patient, color: color(for: patient.status))
                     }
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
                         Button(role: .destructive) {
@@ -41,7 +28,6 @@ struct PatientListView: View {
                     }
                 }
             }
-
 
             .navigationTitle("患者列表")
             .toolbar {
@@ -85,6 +71,27 @@ struct PatientListView: View {
         }
     }
 }
+
+struct PatientRowView: View {
+    let patient: Patient
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 20) {
+            Circle()
+                .fill(color)
+                .frame(width: 20, height: 20)
+            VStack(alignment: .leading) {
+                HStack(spacing: 20) {
+                    Text(patient.name).font(.headline)
+                    Text("性别：\(patient.gender)").font(.headline)
+                }
+                Text("生日：\(patient.birthDate)").font(.headline)
+            }
+        }
+    }
+}
+
 
 #Preview {
     PatientListView()

@@ -11,82 +11,108 @@ import SwiftUI
 struct EditPatientView: View {
     @Environment(\.dismiss) var dismiss
 
+    @State var visitDate: Date
     @State var name: String
     @State var gender: String
-    @State var birthdate: String
+    @State var birthdate: Date
+    @State var age: String
+    @State var address: String
+    @State var height: String
+    @State var weight: String
+    @State var birthWeight: String
+    @State var lifestyle: String
     @State var phone: String
     @State var status: String
-
-    @State private var birthdateDate: Date
 
     let patientId: Int32
     let onSave: () -> Void
     let patientTable = PatientTable(db: DatabaseManager.shared.db)
 
-    init(name: String, gender: String, birthdate: String, phone: String, status: String, patientId: Int32, onSave: @escaping () -> Void) {
-        self._name = State(initialValue: name)
-        self._gender = State(initialValue: gender)
-        self._birthdate = State(initialValue: birthdate)
-        self._phone = State(initialValue: phone)
-        self._status = State(initialValue: status)
-        self.patientId = patientId
+    let genderOptions = ["男", "女", "其他"]
+    let statusOptions = ["在诊中", "观察中", "痊愈", "复发"]
+
+    init(
+        patient: Patient,
+        onSave: @escaping () -> Void
+    ) {
+        self.patientId = patient.id
         self.onSave = onSave
-        
-        // 将传入的 birthdate 字符串转换为 Date
+
+        // visitDate 和 birthdate 转成 Date
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        if let date = formatter.date(from: birthdate) {
-            _birthdateDate = State(initialValue: date)
+
+        if let vd = formatter.date(from: patient.visitDate) {
+            _visitDate = State(initialValue: vd)
         } else {
-            _birthdateDate = State(initialValue: Date())
+            _visitDate = State(initialValue: Date())
         }
+
+        _name = State(initialValue: patient.name)
+        _gender = State(initialValue: patient.gender)
+        if let bd = formatter.date(from: patient.birthDate) {
+            _birthdate = State(initialValue: bd)
+        } else {
+            _birthdate = State(initialValue: Date())
+        }
+        _age = State(initialValue: String(patient.age))
+        _address = State(initialValue: patient.address)
+        _height = State(initialValue: String(format: "%.2f", patient.height))
+        _weight = State(initialValue: String(format: "%.2f", patient.weight))
+        _birthWeight = State(initialValue: String(format: "%.2f", patient.birthWeight))
+        _lifestyle = State(initialValue: patient.lifestyle)
+        _phone = State(initialValue: patient.phone)
+        _status = State(initialValue: patient.status)
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                TextField("姓名", text: $name)
-                Picker("性别", selection: $gender) {
-                    Text("男").tag("男")
-                    Text("女").tag("女")
-                    Text("其他").tag("其他")
-                }
-                .pickerStyle(SegmentedPickerStyle())
+                Section(header: Text("基本信息")) {
+                    TextField("姓名", text: $name)
+                        .multilineTextAlignment(.leading)
+                    DatePicker("就诊日期", selection: $visitDate, displayedComponents: .date)
+                    Picker("性别", selection: $gender) {
+                        ForEach(genderOptions, id: \.self) { Text($0) }
+                    }
+                    .pickerStyle(.segmented)
 
-                DatePicker("生日", selection: $birthdateDate, displayedComponents: .date)
+                    BirthdayView(birthdate: $birthdate, age: $age)
 
-                TextField("电话", text: $phone)
-                    .keyboardType(.numberPad)
+                    TextField("地址", text: $address)
+                        .multilineTextAlignment(.leading)
 
-                Picker("就诊状态", selection: $status) {
-                    Text("在诊中").tag("在诊中")
-                    Text("观察中").tag("观察中")
-                    Text("痊愈").tag("痊愈")
-                    Text("复发").tag("复发")
+                    TextField("身高 (cm)", text: $height)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.leading)
+
+                    TextField("体重 (kg)", text: $weight)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.leading)
+
+                    TextField("出生体重 (kg)", text: $birthWeight)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.leading)
+
+                    TextField("电话", text: $phone)
+                        .multilineTextAlignment(.leading)
+                        .keyboardType(.numberPad)
+                        .onChange(of: phone) { oldValue, newValue in
+                            phone = String(newValue.filter { "0123456789".contains($0) }.prefix(11))
+                        }
+
+                    Picker("状态", selection: $status) {
+                        ForEach(statusOptions, id: \.self) { Text($0) }
+                    }
                 }
             }
             .navigationTitle("编辑患者信息")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        let formatter = DateFormatter()
-                        formatter.dateFormat = "yyyy-MM-dd"
-                        birthdate = formatter.string(from: birthdateDate)
-
-                        patientTable.updatePatientInfo(
-                            id: patientId,
-                            name: name,
-                            gender: gender,
-                            birthdate: birthdate,
-                            phone: phone,
-                            status: status
-                        )
-
-                        onSave()
-                        dismiss()
+                        saveChanges()
                     }
                 }
-
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {
                         dismiss()
@@ -94,5 +120,48 @@ struct EditPatientView: View {
                 }
             }
         }
+    }
+
+    func saveChanges() {
+        // 验证部分字段
+        guard !name.isEmpty else {
+            // 可改为显示 alert
+            print("姓名不能为空")
+            return
+        }
+        guard !phone.isEmpty, phone.count >= 7 else {
+            print("电话格式错误")
+            return
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        let visitDateString = formatter.string(from: visitDate)
+        let birthdateString = formatter.string(from: birthdate)
+
+        let ageInt = Int(age) ?? 0
+        let heightDouble = Double(height) ?? 0.0
+        let weightDouble = Double(weight) ?? 0.0
+        let birthWeightDouble = Double(birthWeight) ?? 0.0
+
+        patientTable.updatePatientInfo(
+            id: patientId,
+            visitDate: visitDateString,
+            name: name,
+            gender: gender,
+            birthDate: birthdateString,
+            age: ageInt,
+            address: address,
+            height: heightDouble,
+            weight: weightDouble,
+            birthWeight: birthWeightDouble,
+            lifestyle: lifestyle,
+            phone: phone,
+            status: status
+        )
+
+        onSave()
+        dismiss()
     }
 }
